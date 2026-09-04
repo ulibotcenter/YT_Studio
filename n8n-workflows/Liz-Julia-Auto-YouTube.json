@@ -48,7 +48,7 @@
     {
       "parameters": {
         "model": "gpt-4o-mini",
-        "systemMessage": "Você é especialista em conteúdo infantil brasileiro. Analise os vídeos de Liz (10 anos, mais leve e madura) e Julia (7 anos, mais fofa). Mantenha sempre: humor infantil natural, ritmo rápido, português do Brasil, temas de cultura geral (história, ciencia, curiosidades, viagens, cultura pop). Gere roteiro completo, voz em off infantil, legendas sincronizadas em PT-BR, EN e ES. O perfil JSON fixo (que você vai criar depois) deve ser carregado aqui. Use os vídeos antigos do canal como exemplo.",
+        "systemMessage": "Você é especialista em conteúdo infantil brasileiro. Analise os vídeos de Liz (10 anos, mais leve e madura) e Julia (7 anos, mais fofa). Mantenha sempre: humor infantil natural, ritmo rápido, português do Brasil, temas de cultura geral (história, ciência, curiosidades, viagens, cultura pop). Gere roteiro completo, voz em off infantil, legendas sincronizadas em PT-BR, EN e ES. Use o perfil JSON fixo (que você vai criar depois) e os vídeos antigos do canal como exemplo. O vídeo deve ter título e descrição profissionais para gerar renda (comentar com parentes), sem marcar como canal infantil puro.",
       },
       "id": "gera-roteiro",
       "name": "Gera Roteiro + Legenda Multilingue",
@@ -62,7 +62,8 @@
     {
       "parameters": {
         "operation": "voiceover",
-        "voice": "alloy" // ou ElevenLabs
+        "text": "={{ $node['Gera Roteiro + Legenda Multilingue'].json.text }}",
+        "voice": "alloy"
       },
       "id": "voz-off",
       "name": "Gera Voz em Off",
@@ -76,24 +77,25 @@
     {
       "parameters": {
         "operation": "edit",
-        "provider": "capcut",
+        "provider": "ffmpeg",
         "action": "auto-edit",
         "duration": 300
       },
       "id": "edita-video",
-      "name": "Edita com CapCut CLI (Mac)",
-      "type": "n8n-nodes-base.capcut",
+      "name": "Edita com FFmpeg + CapCut CLI (Mac)",
+      "type": "n8n-nodes-ffmpeg",
       "typeVersion": 1,
-      "position": [1250, 300]
+      "position": [1250, 300],
+      "credentials": {}
     },
     {
       "parameters": {
         "operation": "generate",
         "model": "flux",
-        "prompt": "Thumbnail profissional para vídeo de Liz & Julia: {{ $node['Gera Roteiro + Legenda Multilingue'].json.title }} - cultura infantil, humor leve, cores vibrantes",
+        "prompt": "Thumbnail profissional para vídeo de Liz & Julia: {{ $node['Gera Roteiro + Legenda Multilingue'].json.title }} - cultura infantil, humor leve, cores vibrantes, logo das meninas",
         "width": 1280,
         "height": 720
-    },
+      },
       "id": "thumbnail",
       "name": "Gera Thumbnail com IA",
       "type": "n8n-nodes-base.openAi",
@@ -102,15 +104,41 @@
     },
     {
       "parameters": {
+        "chatId": "SEU_CHAT_ID_DO_TELEGRAM_AQUI",
+        "text": "📹 Novo vídeo pronto!\n\n{{ $node['Gera Roteiro + Legenda Multilingue'].json.title }}\n\nDuração: {{ $node['Edita com FFmpeg + CapCut CLI (Mac)'].json.duration || 'Calculando...' }}\n\nVoz em off infantil natural\nLegendas PT-BR / EN / ES\n\nAprova para postar agora? (Sim / Não)",
+        "parseMode": "MarkdownV2",
+        "buttons": {
+          "inline": [
+            [
+              {
+                "text": "✅ Aprovar postar",
+                "callback": "APPROVE"
+              },
+              {
+                "text": "❌ Rejeitar",
+                "callback": "REJECT"
+              }
+            ]
+          ]
+        }
+      },
+      "id": "telegram-approval",
+      "name": "Envio para Aprovação (Telegram)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
         "operation": "create",
         "title": "={{ $node['Gera Roteiro + Legenda Multilingue'].json.title }}",
         "description": "={{ $node['Gera Roteiro + Legenda Multilingue'].json.description }}",
         "privacy": "public",
-        "tags": "liz-julia-kids, cultura infantil, historia, ciencia, curiosidades, pt-br, madrid"
+        "tags": "liz-julia-kids, cultura infantil, historia, ciencia, curiosidades, pt-br, madrid, monetize, family culture, parenting, curiozidades"
       },
       "id": "upload-youtube",
       "name": "Faz Upload no YouTube",
-      "type": "n8n-nodes-base.postora",
+      "type": "n8n-nodes-multi-upload-tool",
       "typeVersion": 1,
       "position": [1650, 300]
     }
@@ -131,11 +159,11 @@
     "Gera Voz em Off": {
       "main": [[{ "node": "edita-video", "type": "main", "index": 1 }]]
     },
-    "Edita com CapCut CLI (Mac)", {
-      "main": [[{ "node": "thumbnail", "type": "main", "index": 0 }], [{ "node": "upload-youtube", "type": "main", "index": 0 }]]
+    "Edita com FFmpeg + CapCut CLI (Mac)": {
+      "main": [[{ "node": "telegram-approval", "type": "main", "index": 0 }]]
     },
-    "Gera Thumbnail com IA": {
-      "main": [[{ "node": "upload-youtube", "type": "main", "index": 1 }]]
+    "Envio para Aprovação (Telegram)": {
+      "main": [[{ "node": "upload-youtube", "type": "main", "index": 0 }]]
     }
   },
   "active": false,
