@@ -1,0 +1,145 @@
+{
+  "name": "Liz & Julia - Explora Cultura Infantil (Auto)",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        }
+      },
+      "id": "monitor-videos",
+      "name": "Monitora Pasta de Vídeos",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "path": "/Videos/LizJulia",
+        "options": {
+          "recursive": true,
+          "include": ["*.mp4", "*.mov"]
+        }
+      },
+      "id": "read-files",
+      "name": "Lê arquivos novos",
+      "type": "n8n-nodes-base.readDir",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "transcribe",
+        "model": "whisper"
+      },
+      "id": "transcribe",
+      "name": "Transcreve + Resumo (estilo Liz e Julia)",
+      "type": "n8n-nodes-base.whisper",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "systemMessage": "Você é especialista em conteúdo infantil brasileiro. Analise os vídeos de Liz (10 anos, mais leve e madura) e Julia (7 anos, mais fofa). Mantenha sempre: humor infantil natural, ritmo rápido, português do Brasil, temas de cultura geral (história, ciencia, curiosidades, viagens, cultura pop). Gere roteiro completo, voz em off infantil, legendas sincronizadas em PT-BR, EN e ES. O perfil JSON fixo (que você vai criar depois) deve ser carregado aqui. Use os vídeos antigos do canal como exemplo.",
+      },
+      "id": "gera-roteiro",
+      "name": "Gera Roteiro + Legenda Multilingue",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 2,
+      "position": [850, 300],
+      "credentials": {
+        "openAIApi": "OpenAI"
+      }
+    },
+    {
+      "parameters": {
+        "operation": "voiceover",
+        "voice": "alloy" // ou ElevenLabs
+      },
+      "id": "voz-off",
+      "name": "Gera Voz em Off",
+      "type": "n8n-nodes-base.elevenlabs",
+      "typeVersion": 1,
+      "position": [1050, 300],
+      "credentials": {
+        "elevenlabsApi": "ElevenLabs"
+      }
+    },
+    {
+      "parameters": {
+        "operation": "edit",
+        "provider": "capcut",
+        "action": "auto-edit",
+        "duration": 300
+      },
+      "id": "edita-video",
+      "name": "Edita com CapCut CLI (Mac)",
+      "type": "n8n-nodes-base.capcut",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "generate",
+        "model": "flux",
+        "prompt": "Thumbnail profissional para vídeo de Liz & Julia: {{ $node['Gera Roteiro + Legenda Multilingue'].json.title }} - cultura infantil, humor leve, cores vibrantes",
+        "width": 1280,
+        "height": 720
+    },
+      "id": "thumbnail",
+      "name": "Gera Thumbnail com IA",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 2,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "title": "={{ $node['Gera Roteiro + Legenda Multilingue'].json.title }}",
+        "description": "={{ $node['Gera Roteiro + Legenda Multilingue'].json.description }}",
+        "privacy": "public",
+        "tags": "liz-julia-kids, cultura infantil, historia, ciencia, curiosidades, pt-br, madrid"
+      },
+      "id": "upload-youtube",
+      "name": "Faz Upload no YouTube",
+      "type": "n8n-nodes-base.postora",
+      "typeVersion": 1,
+      "position": [1650, 300]
+    }
+  ],
+  "connections": {
+    "Monitora Pasta de Vídeos": {
+      "main": [[{ "node": "read-files", "type": "main", "index": 0 }]]
+    },
+    "Lê arquivos novos": {
+      "main": [[{ "node": "transcribe", "type": "main", "index": 0 }]]
+    },
+    "Transcreve + Resumo": {
+      "main": [[{ "node": "gera-roteiro", "type": "main", "index": 0 }]]
+    },
+    "Gera Roteiro + Legenda Multilingue": {
+      "main": [[{ "node": "voz-off", "type": "main", "index": 0 }], [{ "node": "edita-video", "type": "main", "index": 0 }]]
+    },
+    "Gera Voz em Off": {
+      "main": [[{ "node": "edita-video", "type": "main", "index": 1 }]]
+    },
+    "Edita com CapCut CLI (Mac)", {
+      "main": [[{ "node": "thumbnail", "type": "main", "index": 0 }], [{ "node": "upload-youtube", "type": "main", "index": 0 }]]
+    },
+    "Gera Thumbnail com IA": {
+      "main": [[{ "node": "upload-youtube", "type": "main", "index": 1 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "timezone": "Europe/Madrid"
+  }
+}
